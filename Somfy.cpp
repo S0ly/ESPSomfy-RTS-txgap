@@ -4796,7 +4796,7 @@ void transceiver_config_t::toJSON(JsonResponse &json) {
     json.addElem("frequency", this->frequency);  // float
     json.addElem("deviation", this->deviation);  // float
     json.addElem("txPower", this->txPower);
-    json.addElem("txGap", this->txGap);
+    json.addElem("txGap", (uint32_t)this->txGap);
     json.addElem("proto", static_cast<uint8_t>(this->proto));
     json.addElem("enabled", this->enabled);
     json.addElem("radioInit", this->radioInit);
