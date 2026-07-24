@@ -4009,6 +4009,21 @@ void SomfyRemote::repeatFrame(uint8_t repeat) {
   //somfy.processFrame(this->lastFrame, true);
 }
 void SomfyShadeController::sendFrame(somfy_frame_t &frame, uint8_t repeat) {
+  // --- Per-blind command spacing (txGap) ---
+  // The radio has a single transmitter and RTS is one-way, so firing frames for
+  // several shades back-to-back makes far/weak motors drop them. Enforce a minimum
+  // gap between transmissions to DIFFERENT shades. Consecutive frames for the SAME
+  // shade (its own up->my move, repeats, set-my sequence) are NEVER delayed so a
+  // blind's own positioning timing is preserved. txGap == 0 disables the feature.
+  static uint32_t s_lastTxEnd = 0;
+  static uint32_t s_lastTxAddr = 0;
+  uint16_t txGap = somfy.transceiver.config.txGap;
+  if(txGap > 0 && s_lastTxAddr != 0 && frame.remoteAddress != s_lastTxAddr) {
+    while((uint32_t)(millis() - s_lastTxEnd) < txGap) {
+      esp_task_wdt_reset();
+      delay(2);
+    }
+  }
   somfy.transceiver.beginTransmit();
   byte frm[10];
   frame.encodeFrame(frm);
@@ -4021,6 +4036,8 @@ void SomfyShadeController::sendFrame(somfy_frame_t &frame, uint8_t repeat) {
     esp_task_wdt_reset();
   }
   this->transceiver.endTransmit();
+  s_lastTxAddr = frame.remoteAddress;
+  s_lastTxEnd = millis();
 }
 bool SomfyShadeController::deleteShade(uint8_t shadeId) {
   for(uint8_t i = 0; i < SOMFY_MAX_SHADES; i++) {
@@ -4738,6 +4755,7 @@ void transceiver_config_t::fromJSON(JsonObject& obj) {
     if(obj.containsKey("deviation")) this->deviation = obj["deviation"];  // float
     if(obj.containsKey("enabled")) this->enabled = obj["enabled"];
     if(obj.containsKey("txPower")) this->txPower = obj["txPower"];
+    if(obj.containsKey("txGap")) this->txGap = obj["txGap"];
     if(obj.containsKey("proto")) this->proto = static_cast<radio_proto>(obj["proto"].as<uint8_t>());
     /*
     if (obj.containsKey("internalCCMode")) this->internalCCMode = obj["internalCCMode"];
@@ -4778,6 +4796,7 @@ void transceiver_config_t::toJSON(JsonResponse &json) {
     json.addElem("frequency", this->frequency);  // float
     json.addElem("deviation", this->deviation);  // float
     json.addElem("txPower", this->txPower);
+    json.addElem("txGap", this->txGap);
     json.addElem("proto", static_cast<uint8_t>(this->proto));
     json.addElem("enabled", this->enabled);
     json.addElem("radioInit", this->radioInit);
@@ -4841,6 +4860,7 @@ void transceiver_config_t::save() {
     pref.putBool("enabled", this->enabled);
     pref.putBool("radioInit", true);
     pref.putChar("txPower", this->txPower);
+    pref.putUShort("txGap", this->txGap);
     pref.putChar("proto", static_cast<uint8_t>(this->proto));
     
     /*
@@ -4930,6 +4950,7 @@ void transceiver_config_t::load() {
     this->deviation = pref.getFloat("deviation", this->deviation);  // float
     this->enabled = pref.getBool("enabled", this->enabled);
     this->txPower = pref.getChar("txPower", this->txPower);
+    this->txGap = pref.getUShort("txGap", this->txGap);
     this->rxBandwidth = pref.getFloat("rxBandwidth", this->rxBandwidth);
     this->proto = static_cast<radio_proto>(pref.getChar("proto", static_cast<uint8_t>(this->proto)));
     this->removeNVSKey("internalCCMode");

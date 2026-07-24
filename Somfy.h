@@ -433,6 +433,7 @@ struct transceiver_config_t {
     float deviation = 47.60;          // Set the Frequency deviation in kHz. Value from 1.58 to 380.85. Default is 47.60 kHz.
     float rxBandwidth = 99.97;        // Receive bandwidth in kHz.  Value from 58.03 to 812.50.  Default is 99.97kHz.
     int8_t txPower = 10;              // Transmission power {-30, -20, -15, -10, -6, 0, 5, 7, 10, 11, 12}.  Default is 12.
+    uint16_t txGap = 3000;            // Min ms between RF commands to DIFFERENT shades. Serializes bursts so far motors don't drop frames when many shades are commanded at once. Same-shade frames (a blind's own up/down/my sequence) are NEVER delayed. 0 = disabled.
 /*    
     bool internalCCMode = false;      // Use internal transmission mode FIFO buffers.
     byte modulationMode = 2;          // Modulation mode. 0 = 2-FSK, 1 = GFSK, 2 = ASK/OOK, 3 = 4-FSK, 4 = MSK.
